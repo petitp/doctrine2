@@ -352,6 +352,7 @@ class ObjectHydrator extends AbstractHydrator
      */
     protected function hydrateRowData(array $row, array &$cache, array &$result)
     {
+
         // Initialize
         $id = $this->idTemplate; // initialize the id-memory
         $nonemptyComponents = array();
@@ -477,7 +478,7 @@ class ObjectHydrator extends AbstractHydrator
                             $targetClass = $this->ce[$relation['targetEntity']];
 
                             if ($relation['isOwningSide']) {
-                                // TODO: Just check hints['fetched'] here?
+                                //TODO: Just check hints['fetched'] here?
                                 // If there is an inverse mapping on the target class its bidirectional
                                 if ($relation['inversedBy']) {
                                     $inverseAssoc = $targetClass->associationMappings[$relation['inversedBy']];
@@ -528,7 +529,42 @@ class ObjectHydrator extends AbstractHydrator
                     $element = $this->getEntity($rowData[$dqlAlias], $dqlAlias);
 
                     if ($this->_rsm->isMixed) {
-                        $element = array($entityKey => $element);
+                        //$element = array($entityKey => $element);
+
+                        if(isset($scalars)) {
+                            foreach($scalars as $key => &$val) {
+
+                                $methodName = 'set'. strtoupper($key[0]) . substr($key,1);
+
+                                if(method_exists($element, $methodName)) {
+                                    $element->{$methodName}($val);
+                                }
+                                else {
+                                    throw('Entity '.get_class($element) . ' does not contain method '.$methodName);
+                                }
+                            }
+                            unset($scalars);
+                        }
+
+                        if(isset($newObjects)) {
+                            foreach ($newObjects as $objIndex => $newObject) {
+
+                                $methodNameSet = 'set'. strtoupper($objIndex[0]) . substr($objIndex,1);
+                                $methodNameAdd = 'add'. strtoupper($objIndex[0]) . substr($objIndex,1);
+
+                                $class  = $newObject['class'];
+                                $args   = $newObject['args'];
+                                $obj    = $class->newInstanceArgs($args);
+
+                                if(method_exists($element, $methodNameSet)) {
+                                    $element->{$methodNameSet}($obj);
+                                }
+                                else if(method_exists($element, $methodNameAdd)) {
+                                    $element->{$methodNameAdd}($obj);
+                                }
+                            }
+                            unset($newObjects);
+                        }
                     }
 
                     if (isset($this->_rsm->indexByMap[$dqlAlias])) {
@@ -567,7 +603,7 @@ class ObjectHydrator extends AbstractHydrator
                 }
             }
         }
-
+        /* ZAKOMENTOVANE
         // Append scalar values to mixed result sets
         if (isset($scalars)) {
             if ( ! isset($resultKey) ) {
@@ -605,6 +641,7 @@ class ObjectHydrator extends AbstractHydrator
                 $result[$resultKey][$objIndex] = $obj;
             }
         }
+        */
     }
 
     /**
